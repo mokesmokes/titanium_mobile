@@ -10,6 +10,8 @@ import org.appcelerator.kroll.KrollProxy;
 import org.appcelerator.titanium.TiC;
 import org.appcelerator.titanium.util.TiUIHelper;
 
+import org.appcelerator.kroll.common.Log;
+
 import ti.modules.titanium.ui.TabProxy;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
@@ -22,7 +24,7 @@ import android.view.ViewGroup;
 public class TiUIActionBarTab extends TiUIAbstractTab {
 
 	private static final String TAG = "TiUIActionBarTab";
-	
+
 	public static class TabFragment extends Fragment {
 		private TiUIActionBarTab tab;
 
@@ -33,28 +35,23 @@ public class TiUIActionBarTab extends TiUIAbstractTab {
 			this.tab = tab;
 		}
 
+		public TiUIActionBarTab getTab() {
+			return this.tab;
+		}
+
 		@Override
 		public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-			if (tab != null) {
-				return tab.getContentView();
+			if (tab == null) {
+				return null;
 			}
-			return null;
+			return tab.getContentView();
 		}
 	}
 
 	ActionBar.Tab tab;
 
-	/**
-	 * The fragment that will provide the content view of the tab.
-	 * This fragment will be attached when the tab is selected and
-	 * detached when it is later unselected. This reference will be
-	 * initialized when the tab is first selected.
-	 */
-	TabFragment fragment;
-
 	public TiUIActionBarTab(TabProxy proxy, ActionBar.Tab tab) {
 		super(proxy);
-
 		this.tab = tab;
 
 		proxy.setModelListener(this);
@@ -73,10 +70,6 @@ public class TiUIActionBarTab extends TiUIAbstractTab {
 			tab.setIcon(icon);
 		}
 		
-	}
-	
-	public String getTabTag() {
-		return ((TabProxy)proxy).getTabTag();
 	}
 
 	@Override
@@ -98,9 +91,14 @@ public class TiUIActionBarTab extends TiUIAbstractTab {
 	 * when the tab is first selected to create the fragment which
 	 * will display the tab's content view.
 	 */
-	void initializeFragment() {
-		fragment = new TabFragment();
+
+	public TabFragment createFragment() {
+		TabFragment fragment = new TabFragment();
 		fragment.setTab(this);
+		return fragment;
 	}
 
+	public void setTabOnFragment(TabFragment fragment) {
+		fragment.setTab(this);
+	}
 }

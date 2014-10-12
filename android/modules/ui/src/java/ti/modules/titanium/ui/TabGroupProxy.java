@@ -27,16 +27,18 @@ import org.appcelerator.titanium.util.TiUIHelper;
 
 import ti.modules.titanium.ui.widget.tabgroup.TiUIAbstractTabGroup;
 import ti.modules.titanium.ui.widget.tabgroup.TiUIActionBarTabGroup;
-import ti.modules.titanium.ui.widget.tabgroup.TiUITabHostGroup;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Message;
+import android.os.Bundle;
 import android.support.v7.app.ActionBarActivity;
 import android.view.WindowManager;
 
 @Kroll.proxy(creatableInModule=UIModule.class, propertyAccessors={
 	TiC.PROPERTY_TABS_BACKGROUND_COLOR,
-	TiC.PROPERTY_ACTIVE_TAB_BACKGROUND_COLOR
+	TiC.PROPERTY_ACTIVE_TAB_BACKGROUND_COLOR,
+	TiC.PROPERTY_SWIPEABLE,
+	TiC.PROPERTY_SMOOTH_SCROLL_ON_TAB_CLICK
 })
 public class TabGroupProxy extends TiWindowProxy implements TiActivityWindow
 {
@@ -49,6 +51,7 @@ public class TabGroupProxy extends TiWindowProxy implements TiActivityWindow
 	private static final int MSG_SET_ACTIVE_TAB = MSG_FIRST_ID + 102;
 	private static final int MSG_GET_ACTIVE_TAB = MSG_FIRST_ID + 103;
 	private static final int MSG_SET_TABS = MSG_FIRST_ID + 104;
+	private static final int MSG_DISABLE_TAB_NAVIGATION = MSG_FIRST_ID + 105;
 
 	protected static final int MSG_LAST_ID = MSG_FIRST_ID + 999;
 
@@ -60,6 +63,8 @@ public class TabGroupProxy extends TiWindowProxy implements TiActivityWindow
 	public TabGroupProxy()
 	{
 		super();
+		defaultValues.put(TiC.PROPERTY_SWIPEABLE, true);
+		defaultValues.put(TiC.PROPERTY_SMOOTH_SCROLL_ON_TAB_CLICK, true);
 	}
 
 	public TabGroupProxy(TiContext tiContext)
@@ -100,6 +105,12 @@ public class TabGroupProxy extends TiWindowProxy implements TiActivityWindow
 				result.setResult(null);
 				return true;
 			}
+			case MSG_DISABLE_TAB_NAVIGATION: {
+				AsyncResult result = (AsyncResult) msg.obj;
+				handleDisableTabNavigation(TiConvert.toBoolean(result.getArg()));
+				result.setResult(null);
+				return true;
+			}
 			default : {
 				return super.handleMessage(msg);
 			}
@@ -127,6 +138,25 @@ public class TabGroupProxy extends TiWindowProxy implements TiActivityWindow
 		return tabs;
 	}
 
+	@Kroll.method
+	public void disableTabNavigation(boolean disable)
+        {
+                if (TiApplication.isUIThread()) {
+                        handleDisableTabNavigation(disable);
+
+                        return;
+                }
+
+                TiMessenger.sendBlockingMainMessage(getMainHandler().obtainMessage(MSG_DISABLE_TAB_NAVIGATION), disable);
+        }
+
+	private void handleDisableTabNavigation(boolean disable)
+	{
+		TiUIActionBarTabGroup tabGroup = (TiUIActionBarTabGroup) view;
+		if (tabGroup != null) {
+			tabGroup.disableTabNavigation(disable);
+		}
+	}
 
 	@Kroll.method
 	public void addTab(TabProxy tab)
@@ -308,16 +338,17 @@ public class TabGroupProxy extends TiWindowProxy implements TiActivityWindow
 	}
 
 	@Override
-	public void windowCreated(TiBaseActivity activity) {
+	public void windowCreated(TiBaseActivity activity, Bundle savedInstanceState) {
 		tabGroupActivity = new WeakReference<ActionBarActivity>(activity);
 		activity.setWindowProxy(this);
 		activity.setLayoutProxy(this);
 		setActivity(activity);
 
 		if (activity.getSupportActionBar() != null) {
-			view = new TiUIActionBarTabGroup(this, activity);
+			view = new TiUIActionBarTabGroup(this, activity, savedInstanceState);
 		} else {
-			view = new TiUITabHostGroup(this, activity);
+			Log.e(TAG, "ActionBar not available for TabGroup");
+			return;
 		}
 
 		setModelListener(view);

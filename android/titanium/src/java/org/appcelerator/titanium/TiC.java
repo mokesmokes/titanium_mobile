@@ -153,6 +153,16 @@ public class TiC
 	 */
 	public static final String EVENT_FOCUSED = "focused";
 
+        /**
+         * @module.api
+         */
+        public static final String EVENT_SELECTED = "selected";
+
+        /**
+         * @module.api
+         */
+        public static final String EVENT_UNSELECTED = "unselected";
+
 	/**
 	 * @module.api
 	 */
@@ -580,6 +590,16 @@ public class TiC
 	 * @module.api
 	 */
 	public static final String PROPERTY_ACTIVE_TAB = "activeTab";
+
+	/**
+	 * @module.api
+	 */
+	public static final String PROPERTY_SWIPEABLE = "swipeable";
+
+	/**
+	 * @module.api
+	 */
+	public static final String PROPERTY_SMOOTH_SCROLL_ON_TAB_CLICK = "smoothScrollOnTabClick";
 
 	/**
 	 * @module.api

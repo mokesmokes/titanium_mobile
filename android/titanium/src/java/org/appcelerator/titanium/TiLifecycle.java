@@ -7,6 +7,7 @@
 package org.appcelerator.titanium;
 
 import android.app.Activity;
+import android.os.Bundle;
 
 /**
  *This class contains a single static utility method for firing a lifecycle event to a single listener.
@@ -19,6 +20,8 @@ public class TiLifecycle
 	public static final int LIFECYCLE_ON_PAUSE = 2;
 	public static final int LIFECYCLE_ON_STOP = 3;
 	public static final int LIFECYCLE_ON_DESTROY = 4;
+	public static final int ON_SAVE_INSTANCE_STATE = 5;
+	public static final int ON_RESTORE_INSTANCE_STATE = 6;
 
 	/**
 	 * An interface for receiving Android lifecycle events. 
@@ -56,6 +59,21 @@ public class TiLifecycle
 		public void onDestroy(Activity activity);
 	}
 
+	public interface OnInstanceStateEvent {
+
+		/**
+		 * Implementing classes should use this to receive native Android onSaveInstanceState events.
+		 * @param activity the attached activity.
+		 */
+		public void onSaveInstanceState(Bundle bundle);
+
+		/**
+		 * Implementing classes should use this to receive native Android onRestoreInstanceState events.
+		 * @param activity the attached activity.
+		 */
+		public void onRestoreInstanceState(Bundle bundle);
+	}
+
 	/**
 	 * An interface to handle OnWindowFocusChanged events.
 	 */
@@ -84,6 +102,14 @@ public class TiLifecycle
 			case LIFECYCLE_ON_PAUSE: listener.onPause(activity); break;
 			case LIFECYCLE_ON_STOP: listener.onStop(activity); break;
 			case LIFECYCLE_ON_DESTROY: listener.onDestroy(activity); break;
+		}
+	}
+
+	public static void fireInstanceStateEvent(Bundle bundle, OnInstanceStateEvent listener, int which)
+	{
+		switch (which) {
+			case ON_SAVE_INSTANCE_STATE: listener.onSaveInstanceState(bundle); break;
+			case ON_RESTORE_INSTANCE_STATE: listener.onRestoreInstanceState(bundle); break;	
 		}
 	}
 }
