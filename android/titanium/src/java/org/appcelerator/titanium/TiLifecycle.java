@@ -8,6 +8,8 @@ package org.appcelerator.titanium;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.content.Intent;
+import android.view.Menu;
 
 /**
  *This class contains a single static utility method for firing a lifecycle event to a single listener.
@@ -20,13 +22,20 @@ public class TiLifecycle
 	public static final int LIFECYCLE_ON_PAUSE = 2;
 	public static final int LIFECYCLE_ON_STOP = 3;
 	public static final int LIFECYCLE_ON_DESTROY = 4;
-	public static final int ON_SAVE_INSTANCE_STATE = 5;
-	public static final int ON_RESTORE_INSTANCE_STATE = 6;
+	public static final int LIFECYCLE_ON_CREATE = 5;
+	public static final int ON_SAVE_INSTANCE_STATE = 6;
+	public static final int ON_RESTORE_INSTANCE_STATE = 7;
 
 	/**
 	 * An interface for receiving Android lifecycle events. 
 	 */
 	public interface OnLifecycleEvent {
+
+		/**
+		 * Implementing classes should use this to receive native Android onStart lifecycle events.
+		 * @param activity the attached activity.
+		 */
+		public void onCreate(Activity activity, Bundle savedInstanceState);
 
 		/**
 		 * Implementing classes should use this to receive native Android onStart lifecycle events.
@@ -85,6 +94,36 @@ public class TiLifecycle
 	}
 
 	/**
+	 * An interface to handle onActivityResult events.
+	 */
+	public interface onActivityResultEvent {
+		/**
+		 * Implementing classes should use this to receive native Android onActivityResult events.
+		 */
+		public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent data);
+	}
+
+	/**
+	 * An interface to handle onCreateOptionsMenu events.
+	 */
+	public interface OnCreateOptionsMenuEvent {
+		/**
+		 * Implementing classes should use this to receive native Android onCreateOptionsMenu events.
+		 */
+		public void onCreateOptionsMenu(Activity activity, Menu menu);
+	}
+
+	/**
+	 * An interface to handle onPrepareOptionsMenu events.
+	 */
+	public interface OnPrepareOptionsMenuEvent {
+		/**
+		 * Implementing classes should use this to receive native Android onPrepareOptionsMenu events.
+		 */
+		public void onPrepareOptionsMenu(Activity activity, Menu menu);
+	}
+
+	/**
 	 * An interface to intercept OnBackPressed events.
 	 */
 	public interface interceptOnBackPressedEvent {
@@ -105,12 +144,34 @@ public class TiLifecycle
 		}
 	}
 
+       public static void fireLifecycleEvent(Activity activity, OnLifecycleEvent listener, Bundle bundle, int which)
+        {
+                switch (which) {
+                        case LIFECYCLE_ON_CREATE: listener.onCreate(activity, bundle); break;
+                }
+        }
+
+	public static void fireOnActivityResultEvent(Activity activity, onActivityResultEvent listener, int requestCode, int resultCode, Intent data)
+	{
+		listener.onActivityResult(activity, requestCode, resultCode, data);
+	}
+
 	public static void fireInstanceStateEvent(Bundle bundle, OnInstanceStateEvent listener, int which)
 	{
 		switch (which) {
 			case ON_SAVE_INSTANCE_STATE: listener.onSaveInstanceState(bundle); break;
 			case ON_RESTORE_INSTANCE_STATE: listener.onRestoreInstanceState(bundle); break;	
 		}
+	}
+
+	public static void fireOnCreateOptionsMenuEvent(Activity activity, OnCreateOptionsMenuEvent listener, Menu menu)
+	{
+		listener.onCreateOptionsMenu(activity, menu);
+	}
+
+	public static void fireOnPrepareOptionsMenuEvent(Activity activity, OnPrepareOptionsMenuEvent listener, Menu menu)
+	{
+		listener.onPrepareOptionsMenu(activity, menu);
 	}
 }
 

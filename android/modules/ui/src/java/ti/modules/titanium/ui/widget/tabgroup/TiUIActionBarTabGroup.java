@@ -413,6 +413,9 @@ public class TiUIActionBarTabGroup extends TiUIAbstractTabGroup implements TabLi
 	}
 
 	@Override
+	public void onCreate(Activity activity, Bundle savedInstanceState) {}
+
+	@Override
 	public void onStart(Activity activity) { }
 
 	@Override

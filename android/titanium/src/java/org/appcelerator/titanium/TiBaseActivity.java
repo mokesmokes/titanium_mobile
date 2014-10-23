@@ -20,6 +20,10 @@ import org.appcelerator.kroll.common.TiMessenger;
 import org.appcelerator.titanium.TiLifecycle.OnLifecycleEvent;
 import org.appcelerator.titanium.TiLifecycle.OnWindowFocusChangedEvent;
 import org.appcelerator.titanium.TiLifecycle.interceptOnBackPressedEvent;
+import org.appcelerator.titanium.TiLifecycle.onActivityResultEvent;
+import org.appcelerator.titanium.TiLifecycle.OnInstanceStateEvent;
+import org.appcelerator.titanium.TiLifecycle.OnCreateOptionsMenuEvent;
+import org.appcelerator.titanium.TiLifecycle.OnPrepareOptionsMenuEvent;
 import org.appcelerator.titanium.proxy.ActionBarProxy;
 import org.appcelerator.titanium.proxy.ActivityProxy;
 import org.appcelerator.titanium.proxy.IntentProxy;
@@ -70,11 +74,17 @@ public abstract class TiBaseActivity extends ActionBarActivity
 	private static OrientationChangedListener orientationChangedListener = null;
 
 	private boolean onDestroyFired = false;
+	private boolean backPressed = false;
 	private int originalOrientationMode = -1;
 	private boolean inForeground = false; // Indicates whether this activity is in foreground or not.
 	private TiWeakList<OnLifecycleEvent> lifecycleListeners = new TiWeakList<OnLifecycleEvent>();
 	private TiWeakList<OnWindowFocusChangedEvent> windowFocusChangedListeners = new TiWeakList<OnWindowFocusChangedEvent>();
 	private TiWeakList<interceptOnBackPressedEvent> interceptOnBackPressedListeners = new TiWeakList<interceptOnBackPressedEvent>();
+	private TiWeakList<OnInstanceStateEvent> instanceStateListeners = new TiWeakList<OnInstanceStateEvent>();
+	private TiWeakList<onActivityResultEvent> onActivityResultListeners = new TiWeakList<onActivityResultEvent>();
+	private TiWeakList<OnCreateOptionsMenuEvent>  onCreateOptionsMenuListeners = new TiWeakList<OnCreateOptionsMenuEvent>();
+	private TiWeakList<OnPrepareOptionsMenuEvent> onPrepareOptionsMenuListeners = new TiWeakList<OnPrepareOptionsMenuEvent>();
+
 	private APSAnalytics analytics = APSAnalytics.getInstance();
 
 	protected View layout;
@@ -407,7 +417,7 @@ public abstract class TiBaseActivity extends ActionBarActivity
 	}
 
 	// Subclasses can override to handle post-creation (but pre-message fire) logic
-	protected void windowCreated()
+	protected void windowCreated(Bundle savedInstanceState)
 	{
 		boolean fullscreen = getIntentBoolean(TiC.PROPERTY_FULLSCREEN, false);
 		boolean modal = getIntentBoolean(TiC.PROPERTY_MODAL, false);
@@ -439,7 +449,7 @@ public abstract class TiBaseActivity extends ActionBarActivity
 		boolean useActivityWindow = getIntentBoolean(TiC.INTENT_PROPERTY_USE_ACTIVITY_WINDOW, false);
 		if (useActivityWindow) {
 			int windowId = getIntentInt(TiC.INTENT_PROPERTY_WINDOW_ID, -1);
-			TiActivityWindows.windowCreated(this, windowId);
+			TiActivityWindows.windowCreated(this, windowId, savedInstanceState);
 		}
 	}
 
@@ -451,7 +461,7 @@ public abstract class TiBaseActivity extends ActionBarActivity
 	 */
 	protected void onCreate(Bundle savedInstanceState)
 	{
-		Log.d(TAG, "Activity " + this + " onCreate", Log.DEBUG_MODE);
+		Log.d(TAG, "Activity " + this + " onCreate");
 
 		inForeground = true;
 		TiApplication tiApp = getTiApp();
@@ -521,7 +531,7 @@ public abstract class TiBaseActivity extends ActionBarActivity
 		Activity tempCurrentActivity = tiApp.getCurrentActivity();
 		tiApp.setCurrentActivity(this, this);
 
-		windowCreated();
+		windowCreated(savedInstanceState);
 
 		if (activityProxy != null) {
 			dispatchCallback(TiC.PROPERTY_ON_CREATE, null);
@@ -547,6 +557,16 @@ public abstract class TiBaseActivity extends ActionBarActivity
 
 		if (window != null) {
 			window.onWindowActivityCreated();
+		}
+		synchronized (lifecycleListeners.synchronizedList()) {
+			for (OnLifecycleEvent listener : lifecycleListeners.nonNull()) {
+				try {
+					TiLifecycle.fireLifecycleEvent(this, listener, savedInstanceState, TiLifecycle.LIFECYCLE_ON_CREATE);
+
+				} catch (Throwable t) {
+					Log.e(TAG, "Error dispatching lifecycle event: " + t.getMessage(), t);
+				}
+			}
 		}
 	}
 
@@ -629,6 +649,15 @@ public abstract class TiBaseActivity extends ActionBarActivity
 	protected void onActivityResult(int requestCode, int resultCode, Intent data)
 	{
 		super.onActivityResult(requestCode, resultCode, data);
+		synchronized (onActivityResultListeners.synchronizedList()) {
+			for (onActivityResultEvent listener : onActivityResultListeners.nonNull()) {
+				try {
+					TiLifecycle.fireOnActivityResultEvent(this, listener, requestCode, resultCode, data);
+				} catch (Throwable t) {
+					Log.e(TAG, "Error dispatching onActivityResult event: " + t.getMessage(), t);
+				}
+			}
+		}
 		getSupportHelper().onActivityResult(requestCode, resultCode, data);
 	}
 
@@ -657,6 +686,7 @@ public abstract class TiBaseActivity extends ActionBarActivity
 
 		} else {
 			// If event is not handled by any listeners allow default behavior.
+			backPressed = true;
 			super.onBackPressed();
 		}
 	}
@@ -805,11 +835,23 @@ public abstract class TiBaseActivity extends ActionBarActivity
 			return false;
 		}
 
+		boolean listenerExists = false;
+		synchronized (onCreateOptionsMenuListeners.synchronizedList()) {
+			for (OnCreateOptionsMenuEvent listener : onCreateOptionsMenuListeners.nonNull()) {
+				try {
+					listenerExists = true;
+					TiLifecycle.fireOnCreateOptionsMenuEvent(this, listener, menu);
+				} catch (Throwable t) {
+					Log.e(TAG, "Error dispatching OnCreateOptionsMenuEvent: " + t.getMessage(), t);
+				}
+			}
+		}
+
 		if (menuHelper == null) {
 			menuHelper = new TiMenuSupport(activityProxy);
 		}
 
-		return menuHelper.onCreateOptionsMenu(super.onCreateOptionsMenu(menu), menu);
+		return menuHelper.onCreateOptionsMenu(super.onCreateOptionsMenu(menu) || listenerExists, menu);
 	}
 
 	@Override
@@ -838,7 +880,18 @@ public abstract class TiBaseActivity extends ActionBarActivity
 	@Override
 	public boolean onPrepareOptionsMenu(Menu menu)
 	{
-		return menuHelper.onPrepareOptionsMenu(super.onPrepareOptionsMenu(menu), menu);
+		boolean listenerExists = false;
+		synchronized (onPrepareOptionsMenuListeners.synchronizedList()) {
+			for (OnPrepareOptionsMenuEvent listener : onPrepareOptionsMenuListeners.nonNull()) {
+				try {
+					listenerExists = true;
+					TiLifecycle.fireOnPrepareOptionsMenuEvent(this, listener, menu);
+				} catch (Throwable t) {
+					Log.e(TAG, "Error dispatching OnPrepareOptionsMenuEvent: " + t.getMessage(), t);
+				}
+			}
+		}
+		return menuHelper.onPrepareOptionsMenu(super.onPrepareOptionsMenu(menu), menu) || listenerExists;
 	}
 
 	public static void callOrientationChangedListener(Configuration newConfig) 
@@ -885,6 +938,11 @@ public abstract class TiBaseActivity extends ActionBarActivity
 		lifecycleListeners.add(new WeakReference<OnLifecycleEvent>(listener));
 	}
 
+	public void addOnInstanceStateEventListener(OnInstanceStateEvent listener)
+	{
+		instanceStateListeners.add(new WeakReference<OnInstanceStateEvent>(listener));
+	}
+
 	public void addOnWindowFocusChangedEventListener(OnWindowFocusChangedEvent listener)
 	{
 		windowFocusChangedListeners.add(new WeakReference<OnWindowFocusChangedEvent>(listener));
@@ -893,6 +951,21 @@ public abstract class TiBaseActivity extends ActionBarActivity
 	public void addInterceptOnBackPressedEventListener(interceptOnBackPressedEvent listener)
 	{
 		interceptOnBackPressedListeners.add(new WeakReference<interceptOnBackPressedEvent>(listener));
+	}
+
+	public void addOnActivityResultListener(onActivityResultEvent listener)
+	{
+		onActivityResultListeners.add(new WeakReference<onActivityResultEvent>(listener));
+	}
+
+	public void addOnCreateOptionsMenuEventListener(OnCreateOptionsMenuEvent listener)
+	{
+		onCreateOptionsMenuListeners.add(new WeakReference<OnCreateOptionsMenuEvent>(listener));
+	}
+
+	public void addOnPrepareOptionsMenuEventListener(OnPrepareOptionsMenuEvent listener)
+	{
+		onPrepareOptionsMenuListeners.add(new WeakReference<OnPrepareOptionsMenuEvent>(listener));
 	}
 
 	public void removeOnLifecycleEventListener(OnLifecycleEvent listener)
@@ -1317,6 +1390,16 @@ public abstract class TiBaseActivity extends ActionBarActivity
 		if (!isFinishing() && supportHelper != null) {
 			outState.putInt("supportHelperId", supportHelperId);
 		}
+
+		synchronized (instanceStateListeners.synchronizedList()) {
+			for (OnInstanceStateEvent listener : instanceStateListeners.nonNull()) {
+				try {
+					TiLifecycle.fireInstanceStateEvent(outState, listener, TiLifecycle.ON_SAVE_INSTANCE_STATE);
+				} catch (Throwable t) {
+					Log.e(TAG, "Error dispatching OnInstanceStateEvent: " + t.getMessage(), t);
+				}
+			}
+		}
 	}
 
 	@Override
@@ -1329,6 +1412,16 @@ public abstract class TiBaseActivity extends ActionBarActivity
 			supportHelper = TiActivitySupportHelpers.retrieveSupportHelper(this, supportHelperId);
 			if (supportHelper == null) {
 				Log.e(TAG, "Unable to retrieve the activity support helper.");
+			}
+		}
+
+		synchronized (instanceStateListeners.synchronizedList()) {
+			for (OnInstanceStateEvent listener : instanceStateListeners.nonNull()) {
+				try {
+					TiLifecycle.fireInstanceStateEvent(savedInstanceState, listener, TiLifecycle.ON_RESTORE_INSTANCE_STATE);
+				} catch (Throwable t) {
+					Log.e(TAG, "Error dispatching OnInstanceStateEvent: " + t.getMessage(), t);
+				}
 			}
 		}
 	}
@@ -1347,7 +1440,7 @@ public abstract class TiBaseActivity extends ActionBarActivity
 
 	protected boolean shouldFinishRootActivity()
 	{
-		return getIntentBoolean(TiC.INTENT_PROPERTY_FINISH_ROOT, false);
+		return (backPressed || isTaskRoot()) && getIntentBoolean(TiC.INTENT_PROPERTY_FINISH_ROOT, false);
 	}
 
 	@Override

@@ -1478,6 +1478,11 @@ public class TiC
 	public static final String PROPERTY_LAYOUT_ID = "layoutId";
 
 	/**
+ 	 * @module.api
+ 	 */
+	public static final String PROPERTY_LIFECYCLE_CONTAINER = "lifecycleContainer";
+
+	/**
 	 * @module.api
 	 */
 	public static final String PROPERTY_LOAD_URL = "loadUrl";
