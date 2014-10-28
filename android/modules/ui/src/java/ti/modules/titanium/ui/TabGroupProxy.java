@@ -38,6 +38,7 @@ import android.view.WindowManager;
 	TiC.PROPERTY_TABS_BACKGROUND_COLOR,
 	TiC.PROPERTY_ACTIVE_TAB_BACKGROUND_COLOR,
 	TiC.PROPERTY_SWIPEABLE,
+	TiC.PROPERTY_EXIT_ON_CLOSE,
 	TiC.PROPERTY_SMOOTH_SCROLL_ON_TAB_CLICK
 })
 public class TabGroupProxy extends TiWindowProxy implements TiActivityWindow
@@ -299,6 +300,21 @@ public class TabGroupProxy extends TiWindowProxy implements TiActivityWindow
 				Log.e(TAG, "Invalid orientationMode array. Must only contain orientation mode constants.");
 			}
 		}
+	}
+
+	@Override
+	public void onPropertyChanged(String name, Object value)
+	{
+		if (opening || opened)  {
+			if (TiC.PROPERTY_EXIT_ON_CLOSE.equals(name)) {
+				Activity activity = (tabGroupActivity != null) ? (Activity)(tabGroupActivity.get()) : null;
+				if (activity != null) {
+					Intent intent = activity.getIntent();
+					intent.putExtra(TiC.INTENT_PROPERTY_FINISH_ROOT, TiConvert.toBoolean(value));
+				}
+			}
+		}
+		super.onPropertyChanged(name, value);
 	}
 
 	@Kroll.method
