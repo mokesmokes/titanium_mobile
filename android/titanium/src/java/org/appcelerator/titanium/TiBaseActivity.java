@@ -20,7 +20,7 @@ import org.appcelerator.kroll.common.TiMessenger;
 import org.appcelerator.titanium.TiLifecycle.OnLifecycleEvent;
 import org.appcelerator.titanium.TiLifecycle.OnWindowFocusChangedEvent;
 import org.appcelerator.titanium.TiLifecycle.interceptOnBackPressedEvent;
-import org.appcelerator.titanium.TiLifecycle.onActivityResultEvent;
+import org.appcelerator.titanium.TiLifecycle.OnActivityResultEvent;
 import org.appcelerator.titanium.TiLifecycle.OnInstanceStateEvent;
 import org.appcelerator.titanium.TiLifecycle.OnCreateOptionsMenuEvent;
 import org.appcelerator.titanium.TiLifecycle.OnPrepareOptionsMenuEvent;
@@ -74,14 +74,13 @@ public abstract class TiBaseActivity extends ActionBarActivity
 	private static OrientationChangedListener orientationChangedListener = null;
 
 	private boolean onDestroyFired = false;
-	private boolean backPressed = false;
 	private int originalOrientationMode = -1;
 	private boolean inForeground = false; // Indicates whether this activity is in foreground or not.
 	private TiWeakList<OnLifecycleEvent> lifecycleListeners = new TiWeakList<OnLifecycleEvent>();
 	private TiWeakList<OnWindowFocusChangedEvent> windowFocusChangedListeners = new TiWeakList<OnWindowFocusChangedEvent>();
 	private TiWeakList<interceptOnBackPressedEvent> interceptOnBackPressedListeners = new TiWeakList<interceptOnBackPressedEvent>();
 	private TiWeakList<OnInstanceStateEvent> instanceStateListeners = new TiWeakList<OnInstanceStateEvent>();
-	private TiWeakList<onActivityResultEvent> onActivityResultListeners = new TiWeakList<onActivityResultEvent>();
+	private TiWeakList<OnActivityResultEvent> onActivityResultListeners = new TiWeakList<OnActivityResultEvent>();
 	private TiWeakList<OnCreateOptionsMenuEvent>  onCreateOptionsMenuListeners = new TiWeakList<OnCreateOptionsMenuEvent>();
 	private TiWeakList<OnPrepareOptionsMenuEvent> onPrepareOptionsMenuListeners = new TiWeakList<OnPrepareOptionsMenuEvent>();
 
@@ -650,7 +649,7 @@ public abstract class TiBaseActivity extends ActionBarActivity
 	{
 		super.onActivityResult(requestCode, resultCode, data);
 		synchronized (onActivityResultListeners.synchronizedList()) {
-			for (onActivityResultEvent listener : onActivityResultListeners.nonNull()) {
+			for (OnActivityResultEvent listener : onActivityResultListeners.nonNull()) {
 				try {
 					TiLifecycle.fireOnActivityResultEvent(this, listener, requestCode, resultCode, data);
 				} catch (Throwable t) {
@@ -686,7 +685,6 @@ public abstract class TiBaseActivity extends ActionBarActivity
 
 		} else {
 			// If event is not handled by any listeners allow default behavior.
-			backPressed = true;
 			super.onBackPressed();
 		}
 	}
@@ -953,9 +951,9 @@ public abstract class TiBaseActivity extends ActionBarActivity
 		interceptOnBackPressedListeners.add(new WeakReference<interceptOnBackPressedEvent>(listener));
 	}
 
-	public void addOnActivityResultListener(onActivityResultEvent listener)
+	public void addOnActivityResultListener(OnActivityResultEvent listener)
 	{
-		onActivityResultListeners.add(new WeakReference<onActivityResultEvent>(listener));
+		onActivityResultListeners.add(new WeakReference<OnActivityResultEvent>(listener));
 	}
 
 	public void addOnCreateOptionsMenuEventListener(OnCreateOptionsMenuEvent listener)
@@ -1440,7 +1438,7 @@ public abstract class TiBaseActivity extends ActionBarActivity
 
 	protected boolean shouldFinishRootActivity()
 	{
-		return (backPressed || isTaskRoot()) && getIntentBoolean(TiC.INTENT_PROPERTY_FINISH_ROOT, false);
+		return getIntentBoolean(TiC.INTENT_PROPERTY_FINISH_ROOT, false);
 	}
 
 	@Override
